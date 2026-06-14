@@ -3,15 +3,14 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             d:DesignWidth="260"
-             d:DesignHeight="640"
+             d:DesignWidth="280"
+             d:DesignHeight="720"
              x:Class="AegisEditor.Views.InspectorPanel">
 
     <Border Background="{DynamicResource AeSurfaceBrush}"
             BorderBrush="{DynamicResource AeBorderBrush}"
             BorderThickness="1"
-            CornerRadius="2"
-            Padding="0">
+            CornerRadius="2">
 
         <DockPanel>
             <Border DockPanel.Dock="Top"
@@ -26,13 +25,19 @@
             </Border>
 
             <ScrollViewer>
-                <StackPanel Margin="8"
-                            Spacing="8">
-                    <TextBox Text="{Binding Target.Name}"
+                <StackPanel Margin="8" Spacing="8">
+                    <TextBlock IsVisible="{Binding !HasTarget}"
+                               Text="Selecione uma entidade."
+                               Foreground="{DynamicResource AeTextSecondaryBrush}"
+                               FontSize="12" />
+
+                    <TextBox IsVisible="{Binding HasTarget}"
+                             Text="{Binding Target.Name}"
                              AcceptsReturn="False"
                              FontWeight="SemiBold" />
 
-                    <Grid ColumnDefinitions="56,*"
+                    <Grid IsVisible="{Binding HasTarget}"
+                          ColumnDefinitions="58,*"
                           ColumnSpacing="8">
                         <TextBlock Text="Type"
                                    VerticalAlignment="Center"
@@ -44,7 +49,8 @@
                                  FontFamily="{DynamicResource AeFontMono}" />
                     </Grid>
 
-                    <Border Background="#0d2c48"
+                    <Border IsVisible="{Binding HasTarget}"
+                            Background="#0d2c48"
                             BorderBrush="{DynamicResource AeBorderBrush}"
                             BorderThickness="1"
                             CornerRadius="3">
@@ -57,85 +63,198 @@
                                            FontSize="12"
                                            FontWeight="SemiBold" />
                             </Border>
-
                             <Grid Margin="8"
                                   RowDefinitions="Auto,Auto,Auto"
                                   ColumnDefinitions="70,*,*"
                                   RowSpacing="8"
                                   ColumnSpacing="8">
-                                <TextBlock Text="Position"
-                                           VerticalAlignment="Center"
-                                           FontSize="11"
-                                           Foreground="{DynamicResource AeTextSecondaryBrush}" />
-                                <TextBox Grid.Column="1"
-                                         Text="{Binding Target.X, Mode=TwoWay}"
-                                         FontFamily="{DynamicResource AeFontMono}" />
-                                <TextBox Grid.Column="2"
-                                         Text="{Binding Target.Y, Mode=TwoWay}"
-                                         FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBlock Text="Position" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Column="1" Text="{Binding Target.X, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBox Grid.Column="2" Text="{Binding Target.Y, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
 
-                                <TextBlock Grid.Row="1"
-                                           Text="Scale"
-                                           VerticalAlignment="Center"
-                                           FontSize="11"
-                                           Foreground="{DynamicResource AeTextSecondaryBrush}" />
-                                <TextBox Grid.Row="1"
-                                         Grid.Column="1"
-                                         Text="{Binding Target.ScaleX, Mode=TwoWay}"
-                                         FontFamily="{DynamicResource AeFontMono}" />
-                                <TextBox Grid.Row="1"
-                                         Grid.Column="2"
-                                         Text="{Binding Target.ScaleY, Mode=TwoWay}"
-                                         FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBlock Grid.Row="1" Text="Scale" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Target.ScaleX, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding Target.ScaleY, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
 
-                                <TextBlock Grid.Row="2"
-                                           Text="Rotation"
-                                           VerticalAlignment="Center"
-                                           FontSize="11"
-                                           Foreground="{DynamicResource AeTextSecondaryBrush}" />
-                                <TextBox Grid.Row="2"
-                                         Grid.Column="1"
-                                         Grid.ColumnSpan="2"
-                                         Text="{Binding Target.Rotation, Mode=TwoWay}"
-                                         FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBlock Grid.Row="2" Text="Rotation" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding Target.Rotation, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
                             </Grid>
                         </StackPanel>
                     </Border>
 
-                    <Border Background="#0d2c48"
+                    <Border IsVisible="{Binding HasTarget}"
+                            Background="#092036"
                             BorderBrush="{DynamicResource AeBorderBrush}"
                             BorderThickness="1"
-                            CornerRadius="3">
+                            CornerRadius="3"
+                            Padding="8">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <ComboBox ItemsSource="{Binding ComponentTypes}"
+                                      SelectedItem="{Binding SelectedComponentType}"
+                                      MinHeight="28" />
+                            <Button Grid.Column="1"
+                                    Content="Add Component"
+                                    Command="{Binding AddComponentCommand}"
+                                    Padding="10,4" />
+                        </Grid>
+                    </Border>
+
+                    <Border IsVisible="{Binding HasSpriteRenderer}" Background="#0d2c48" BorderBrush="{DynamicResource AeBorderBrush}" BorderThickness="1" CornerRadius="3">
                         <StackPanel>
-                            <Border Background="#134060"
-                                    Padding="8,5"
-                                    BorderBrush="{DynamicResource AeBorderBrush}"
-                                    BorderThickness="0,0,0,1">
-                                <TextBlock Text="Sprite Renderer"
-                                           FontSize="12"
-                                           FontWeight="SemiBold" />
+                            <Border Background="#134060" Padding="8,5" BorderBrush="{DynamicResource AeBorderBrush}" BorderThickness="0,0,0,1">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="x" Padding="7,0" Command="{Binding RemoveComponentCommand}" CommandParameter="SpriteRenderer" />
+                                    <TextBlock Text="SpriteRenderer" FontSize="12" FontWeight="SemiBold" />
+                                </DockPanel>
                             </Border>
-                            <Grid Margin="8"
-                                  RowDefinitions="Auto,Auto"
-                                  ColumnDefinitions="70,*"
-                                  RowSpacing="8"
-                                  ColumnSpacing="8">
-                                <TextBlock Text="Texture"
-                                           FontSize="11"
-                                           VerticalAlignment="Center"
-                                           Foreground="{DynamicResource AeTextSecondaryBrush}" />
-                                <TextBox Grid.Column="1"
-                                         Text="{Binding Target.TexturePath, Mode=TwoWay}"
-                                         FontFamily="{DynamicResource AeFontMono}" />
-                                <TextBlock Grid.Row="1"
-                                           Text="Script"
-                                           FontSize="11"
-                                           VerticalAlignment="Center"
-                                           Foreground="{DynamicResource AeTextSecondaryBrush}" />
-                                <TextBox Grid.Row="1"
-                                         Grid.Column="1"
-                                         Text="{Binding Target.ScriptPath, Mode=TwoWay}"
-                                         FontFamily="{DynamicResource AeFontMono}" />
+                            <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="78,*,*" RowSpacing="8" ColumnSpacing="8">
+                                <TextBlock Text="Texture" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding SpriteRenderer.Texture, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+
+                                <TextBlock Grid.Row="1" Text="Color RGBA" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="4">
+                                    <TextBox Width="38" Text="{Binding SpriteRenderer.ColorR, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                    <TextBox Width="38" Text="{Binding SpriteRenderer.ColorG, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                    <TextBox Width="38" Text="{Binding SpriteRenderer.ColorB, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                    <TextBox Width="38" Text="{Binding SpriteRenderer.Alpha, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                </StackPanel>
+
+                                <CheckBox Grid.Row="2" Grid.Column="1" Content="Flip X" IsChecked="{Binding SpriteRenderer.FlipX, Mode=TwoWay}" />
+                                <CheckBox Grid.Row="2" Grid.Column="2" Content="Flip Y" IsChecked="{Binding SpriteRenderer.FlipY, Mode=TwoWay}" />
+
+                                <TextBlock Grid.Row="3" Text="Layer" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding SpriteRenderer.Layer, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+
+                                <TextBlock Grid.Row="4" Text="Order" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding SpriteRenderer.SortingOrder, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border IsVisible="{Binding HasCollider2D}" Background="#0d2c48" BorderBrush="{DynamicResource AeBorderBrush}" BorderThickness="1" CornerRadius="3">
+                        <StackPanel>
+                            <Border Background="#134060" Padding="8,5" BorderBrush="{DynamicResource AeBorderBrush}" BorderThickness="0,0,0,1">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="x" Padding="7,0" Command="{Binding RemoveComponentCommand}" CommandParameter="Collider2D" />
+                                    <TextBlock Text="Collider 2D" FontSize="12" FontWeight="SemiBold" />
+                                </DockPanel>
+                            </Border>
+                            <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="70,*,*" RowSpacing="8" ColumnSpacing="8">
+                                <TextBlock Text="Shape" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <ComboBox Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding Collider2D.ShapeOptions}" SelectedItem="{Binding Collider2D.Shape}" />
+                                <TextBlock Grid.Row="1" Text="Offset" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Collider2D.OffsetX, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding Collider2D.OffsetY, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBlock Grid.Row="2" Text="Size" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Collider2D.Width, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBox Grid.Row="2" Grid.Column="2" Text="{Binding Collider2D.Height, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                <CheckBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Content="Is Trigger" IsChecked="{Binding Collider2D.IsTrigger, Mode=TwoWay}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border IsVisible="{Binding HasRigidbody2D}" Background="#0d2c48" BorderBrush="{DynamicResource AeBorderBrush}" BorderThickness="1" CornerRadius="3">
+                        <StackPanel>
+                            <Border Background="#134060" Padding="8,5" BorderBrush="{DynamicResource AeBorderBrush}" BorderThickness="0,0,0,1">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="x" Padding="7,0" Command="{Binding RemoveComponentCommand}" CommandParameter="Rigidbody2D" />
+                                    <TextBlock Text="Rigidbody 2D" FontSize="12" FontWeight="SemiBold" />
+                                </DockPanel>
+                            </Border>
+                            <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="82,*,*" RowSpacing="8" ColumnSpacing="8">
+                                <TextBlock Text="Type" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <ComboBox Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding Rigidbody2D.TypeOptions}" SelectedItem="{Binding Rigidbody2D.BodyType}" />
+                                <TextBlock Grid.Row="1" Text="Gravity" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding Rigidbody2D.GravityScale, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBlock Grid.Row="2" Text="Velocity" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Rigidbody2D.VelocityX, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBox Grid.Row="2" Grid.Column="2" Text="{Binding Rigidbody2D.VelocityY, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBlock Grid.Row="3" Text="Linear Drag" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding Rigidbody2D.LinearDrag, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border IsVisible="{Binding HasAudioSource}" Background="#0d2c48" BorderBrush="{DynamicResource AeBorderBrush}" BorderThickness="1" CornerRadius="3">
+                        <StackPanel>
+                            <Border Background="#134060" Padding="8,5" BorderBrush="{DynamicResource AeBorderBrush}" BorderThickness="0,0,0,1">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="x" Padding="7,0" Command="{Binding RemoveComponentCommand}" CommandParameter="AudioSource" />
+                                    <TextBlock Text="AudioSource" FontSize="12" FontWeight="SemiBold" />
+                                </DockPanel>
+                            </Border>
+                            <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="82,*,*" RowSpacing="8" ColumnSpacing="8">
+                                <TextBlock Text="Clip" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding AudioSource.Clip, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBlock Grid.Row="1" Text="Volume/Pitch" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding AudioSource.Volume, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding AudioSource.Pitch, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                <CheckBox Grid.Row="2" Grid.Column="1" Content="Loop" IsChecked="{Binding AudioSource.Loop, Mode=TwoWay}" />
+                                <CheckBox Grid.Row="2" Grid.Column="2" Content="Play Start" IsChecked="{Binding AudioSource.PlayOnStart, Mode=TwoWay}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border IsVisible="{Binding HasScript}" Background="#0d2c48" BorderBrush="{DynamicResource AeBorderBrush}" BorderThickness="1" CornerRadius="3">
+                        <StackPanel>
+                            <Border Background="#134060" Padding="8,5" BorderBrush="{DynamicResource AeBorderBrush}" BorderThickness="0,0,0,1">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="x" Padding="7,0" Command="{Binding RemoveComponentCommand}" CommandParameter="Script" />
+                                    <TextBlock Text="Script" FontSize="12" FontWeight="SemiBold" />
+                                </DockPanel>
+                            </Border>
+                            <Grid Margin="8" RowDefinitions="Auto,Auto" ColumnDefinitions="70,*" RowSpacing="8" ColumnSpacing="8">
+                                <TextBlock Text="Lua" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Column="1" Text="{Binding Script.File, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBlock Grid.Row="1" Text="Vars JSON" FontSize="11" VerticalAlignment="Top" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Row="1" Grid.Column="1" MinHeight="54" AcceptsReturn="True" Text="{Binding Script.PublicVariablesJson, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border IsVisible="{Binding HasCamera}" Background="#0d2c48" BorderBrush="{DynamicResource AeBorderBrush}" BorderThickness="1" CornerRadius="3">
+                        <StackPanel>
+                            <Border Background="#134060" Padding="8,5" BorderBrush="{DynamicResource AeBorderBrush}" BorderThickness="0,0,0,1">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="x" Padding="7,0" Command="{Binding RemoveComponentCommand}" CommandParameter="Camera" />
+                                    <TextBlock Text="Camera" FontSize="12" FontWeight="SemiBold" />
+                                </DockPanel>
+                            </Border>
+                            <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="78,*,*" RowSpacing="8" ColumnSpacing="8">
+                                <TextBlock Text="Zoom" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding Camera.Zoom, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                <TextBlock Grid.Row="1" Text="Viewport" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="4">
+                                    <TextBox Width="38" Text="{Binding Camera.ViewportX, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                    <TextBox Width="38" Text="{Binding Camera.ViewportY, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                    <TextBox Width="38" Text="{Binding Camera.ViewportW, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                    <TextBox Width="38" Text="{Binding Camera.ViewportH, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                </StackPanel>
+                                <TextBlock Grid.Row="2" Text="BG RGB" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="4">
+                                    <TextBox Width="45" Text="{Binding Camera.BackgroundR, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                    <TextBox Width="45" Text="{Binding Camera.BackgroundG, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                    <TextBox Width="45" Text="{Binding Camera.BackgroundB, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                                </StackPanel>
+                                <TextBlock Grid.Row="3" Text="Follow" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding Camera.FollowTarget, Mode=TwoWay}" FontFamily="{DynamicResource AeFontMono}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border IsVisible="{Binding HasTagLayer}" Background="#0d2c48" BorderBrush="{DynamicResource AeBorderBrush}" BorderThickness="1" CornerRadius="3">
+                        <StackPanel>
+                            <Border Background="#134060" Padding="8,5" BorderBrush="{DynamicResource AeBorderBrush}" BorderThickness="0,0,0,1">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="x" Padding="7,0" Command="{Binding RemoveComponentCommand}" CommandParameter="TagLayer" />
+                                    <TextBlock Text="Tag / Layer" FontSize="12" FontWeight="SemiBold" />
+                                </DockPanel>
+                            </Border>
+                            <Grid Margin="8" RowDefinitions="Auto,Auto" ColumnDefinitions="70,*" RowSpacing="8" ColumnSpacing="8">
+                                <TextBlock Text="Tag" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Column="1" Text="{Binding TagLayer.Tag, Mode=TwoWay}" />
+                                <TextBlock Grid.Row="1" Text="Layer" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AeTextSecondaryBrush}" />
+                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding TagLayer.Layer, Mode=TwoWay}" />
                             </Grid>
                         </StackPanel>
                     </Border>

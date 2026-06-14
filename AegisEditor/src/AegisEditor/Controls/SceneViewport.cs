@@ -343,6 +343,9 @@ public sealed class SceneViewport : Control
         foreach (var entity in viewport.SelectedEntities)
         {
             var start = _transformStart.FirstOrDefault(t => t.Id.Equals(entity.Id, StringComparison.Ordinal));
+            if (start is null)
+                continue;
+
             var rotation = start.Rotation + delta;
             if (!bypassSnap)
                 rotation = MathF.Round(rotation / snapStep) * snapStep;

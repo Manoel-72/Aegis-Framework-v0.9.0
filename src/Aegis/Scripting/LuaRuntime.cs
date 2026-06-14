@@ -57,6 +57,7 @@ public sealed partial class LuaRuntime : IDisposable
         _lua = new Lua();
         _lua.State.Encoding = System.Text.Encoding.UTF8;
         SceneManager.Instance.Initialize(app, this);
+        SceneScriptHost.Attach(this);
     }
 
     public void RegisterAll()
@@ -73,6 +74,10 @@ public sealed partial class LuaRuntime : IDisposable
         // Stable MVP API. Prefer this for new templates; legacy aliases remain registered below.
         Reg("aegis.create",          nameof(Create));
         Reg("aegis.destroy",         nameof(Destroy));
+        Reg("aegis.asset",           nameof(Asset));
+        Reg("aegis.assetExists",     nameof(AssetExists));
+        Reg("aegis.validateAssets",  nameof(ValidateAssets));
+        Reg("aegis.assetReport",     nameof(AssetReport));
 
         RegLegacy("aegis.newSprite",       nameof(NewSprite));
         RegLegacy("aegis.newRect",         nameof(NewRect));
@@ -402,7 +407,7 @@ public sealed partial class LuaRuntime : IDisposable
         _lua["aegis_update"]  = null;
         _lua["aegis_draw"]    = null;
         _lua["aegis_draw_ui"] = null;
-        _lua.DoFile(path);
+        DoFileChecked(path, "reload");
         if (!HasFunction("aegis_init"))
             throw new InvalidOperationException("[Aegis|Lua] Função obrigatória aegis_init não encontrada após reload.");
         CallFunction("aegis_init");
@@ -416,7 +421,7 @@ public sealed partial class LuaRuntime : IDisposable
             throw new FileNotFoundException($"[Aegis] Script não encontrado: '{full}'");
         _gameRoot = Directory.GetCurrentDirectory();
         _mainLuaFullPath = full;
-        _lua.DoFile(full);
+        DoFileChecked(full, "boot");
     }
 
     /// <summary>HOT_RELOAD vindo do Aegis Editor: recarrega module ou main.lua dentro da pasta do jogo.</summary>
@@ -434,7 +439,7 @@ public sealed partial class LuaRuntime : IDisposable
         if (string.Equals(full, _mainLuaFullPath, StringComparison.OrdinalIgnoreCase))
             ReloadMainScript(full);
         else
-            _lua.DoFile(full);
+            DoFileChecked(full, "hot reload");
     }
 
     public void LoadSceneFile(string path)
@@ -455,7 +460,7 @@ public sealed partial class LuaRuntime : IDisposable
         _lua["aegis_draw_ui"] = null;
         _onSceneEnter = null;
         _onSceneExit = null;
-        _lua.DoFile(full);
+        DoFileChecked(full, $"load scene '{path}'");
         if (!HasFunction("aegis_init"))
             throw new InvalidOperationException($"[Aegis|Lua] Função obrigatória aegis_init não encontrada na cena: {path}");
         CallFunction("aegis_init");
@@ -492,7 +497,7 @@ public sealed partial class LuaRuntime : IDisposable
         _lua["aegis_draw"] = null;
         _lua["aegis_draw_ui"] = null;
 
-        _lua.DoFile(full);
+        DoFileChecked(full, $"push scene '{name}'");
         if (!HasFunction("aegis_init"))
             throw new InvalidOperationException($"[Aegis|Lua] Funcao obrigatoria aegis_init nao encontrada na cena: {path}");
 
@@ -532,7 +537,17 @@ public sealed partial class LuaRuntime : IDisposable
         }
     }
 
-    public void ExecuteString(string code)            => _lua.DoString(code);
+    public void ExecuteString(string code)
+    {
+        try
+        {
+            _lua.DoString(code);
+        }
+        catch (Exception ex) when (IsLuaException(ex))
+        {
+            throw new InvalidOperationException(BuildLuaErrorMessage("execute string", "<string>", ex), ex);
+        }
+    }
 
     public bool HasFunction(string name) => _lua[name] is LuaFunction;
 
@@ -540,7 +555,60 @@ public sealed partial class LuaRuntime : IDisposable
 
     public void CallFunction(string name, params object[] args)
     {
-        if (_lua[name] is LuaFunction fn) fn.Call(args);
+        if (_lua[name] is not LuaFunction fn) return;
+
+        try
+        {
+            fn.Call(args);
+        }
+        catch (Exception ex) when (IsLuaException(ex))
+        {
+            throw new InvalidOperationException(BuildLuaErrorMessage($"call {name}", _mainLuaFullPath, ex), ex);
+        }
+    }
+
+    internal object[] DoFileChecked(string fullPath, string phase)
+    {
+        try
+        {
+            return _lua.DoFile(fullPath);
+        }
+        catch (Exception ex) when (IsLuaException(ex))
+        {
+            throw new InvalidOperationException(BuildLuaErrorMessage(phase, fullPath, ex), ex);
+        }
+    }
+
+    private static bool IsLuaException(Exception ex)
+        => ex.GetType().FullName?.StartsWith("NLua.", StringComparison.Ordinal) == true
+           || ex.GetType().FullName?.StartsWith("KeraLua.", StringComparison.Ordinal) == true;
+
+    private static string BuildLuaErrorMessage(string phase, string file, Exception ex)
+    {
+        var raw = ex.Message.Replace("\r\n", "\n").Trim();
+        var tip = LuaErrorTip(raw);
+        var path = string.IsNullOrWhiteSpace(file) ? "<unknown>" : file;
+
+        return "[Aegis|Lua] Erro no script.\n" +
+               $"  Fase: {phase}\n" +
+               $"  Arquivo: {path}\n" +
+               $"  Erro: {raw}\n" +
+               $"  Dica: {tip}";
+    }
+
+    private static string LuaErrorTip(string message)
+    {
+        var lower = message.ToLowerInvariant();
+        if (lower.Contains("attempt to call a nil value"))
+            return "voce chamou uma funcao que nao existe. Confira o nome da API, exemplo: aegis.create(...) em vez de funcao global antiga.";
+        if (lower.Contains("attempt to index a nil value"))
+            return "algum objeto/tabela esta nil. Confira se o asset, entidade ou retorno de funcao foi criado antes de usar.";
+        if (lower.Contains("asset nao encontrado") || lower.Contains("texture not found") || lower.Contains("file not found"))
+            return "confira o caminho do arquivo dentro de res/. Use aegis.asset(\"sprites/player.png\") para validar cedo.";
+        if (lower.Contains("syntax") || lower.Contains("unexpected symbol") || lower.Contains("near"))
+            return "ha erro de sintaxe Lua perto da linha indicada. Confira parenteses, end, virgulas e aspas.";
+
+        return "abra o arquivo indicado, confira a linha do erro e rode aegis doctor <jogo> para validar assets e estrutura.";
     }
 
 

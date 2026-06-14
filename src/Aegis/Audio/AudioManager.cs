@@ -169,7 +169,10 @@ public static class AudioManager
             throw new ArgumentException("Arquivo de áudio vazio.", nameof(file));
         if (Path.IsPathRooted(file))
             throw new InvalidOperationException($"[Aegis|Audio] Use caminho relativo dentro de {AudioRoot}: '{file}'");
-        return file.Replace('\\', '/').TrimStart('/');
+        var normalized = file.Replace('\\', '/').TrimStart('/');
+        return normalized.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)
+            ? normalized[6..]
+            : normalized;
     }
 
     private static string ResolveAudioPath(string key)

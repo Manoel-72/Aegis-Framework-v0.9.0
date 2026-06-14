@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Aegis.Core;
+using Aegis.Display;
 using AegisEditor.Shared.Models;
 
 namespace Aegis.Scene;
@@ -46,6 +47,8 @@ public sealed class SceneJsonLoader
         state = ValidateAndMigrateScene(state, fullPath);
 
         var created = new Dictionary<string, Object2D>(StringComparer.OrdinalIgnoreCase);
+        var createdByName = new Dictionary<string, Object2D>(StringComparer.OrdinalIgnoreCase);
+        var createdEntities = new List<LoadedSceneEntity>();
 
         foreach (var entity in state.Entities)
         {
@@ -54,9 +57,16 @@ public sealed class SceneJsonLoader
 
             if (!string.IsNullOrWhiteSpace(entity.Id))
                 created[entity.Id] = obj;
+
+            if (!string.IsNullOrWhiteSpace(entity.Name))
+                createdByName.TryAdd(entity.Name, obj);
+
+            createdEntities.Add(new LoadedSceneEntity(entity, obj));
         }
 
-        return new SceneJsonLoadResult(state.Name, state.Entities.Count, created.Values.ToArray());
+        ResolveCameraFollowTargets(createdEntities, created, createdByName);
+
+        return new SceneJsonLoadResult(state.Name, state.Entities.Count, createdEntities.Select(e => e.Object).ToArray());
     }
 
     private static SceneState ValidateAndMigrateScene(SceneState state, string fullPath)
@@ -89,6 +99,51 @@ public sealed class SceneJsonLoader
         return created.TryGetValue(parentId, out var parent) ? parent : root;
     }
 
+    private static void ResolveCameraFollowTargets(
+        IReadOnlyList<LoadedSceneEntity> entities,
+        IReadOnlyDictionary<string, Object2D> byId,
+        IReadOnlyDictionary<string, Object2D> byName)
+    {
+        foreach (var loaded in entities)
+        {
+            var camera = SceneComponentJson.Get(loaded.Entity, "Camera");
+            if (camera is null)
+                continue;
+
+            var followTarget = SceneComponentJson.String(camera, "follow_target", "followTarget");
+            if (string.IsNullOrWhiteSpace(followTarget))
+                continue;
+
+            if (!TryResolveObject(followTarget, byId, byName, out var target))
+            {
+                AegisLog.Warn("Scene", $"Camera '{loaded.Entity.Name}' nao encontrou follow_target '{followTarget}'.");
+                continue;
+            }
+
+            var speed = MathF.Max(0.01f, SceneComponentJson.Float(camera, "follow_speed", "followSpeed") ?? 5f);
+            Camera2D.Instance.SetTarget(target, speed);
+        }
+    }
+
+    private static bool TryResolveObject(
+        string reference,
+        IReadOnlyDictionary<string, Object2D> byId,
+        IReadOnlyDictionary<string, Object2D> byName,
+        out Object2D target)
+    {
+        var key = reference.Trim();
+        if (byId.TryGetValue(key, out target!))
+            return true;
+
+        if (byName.TryGetValue(key, out target!))
+            return true;
+
+        target = null!;
+        return false;
+    }
+
 }
 
 public sealed record SceneJsonLoadResult(string Name, int EntityCount, IReadOnlyList<Object2D> Objects);
+
+internal sealed record LoadedSceneEntity(SceneEntityDto Entity, Object2D Object);

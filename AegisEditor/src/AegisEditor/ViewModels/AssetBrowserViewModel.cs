@@ -32,6 +32,12 @@ public sealed partial class AssetBrowserViewModel(IAssetBrowserService assets, I
     [ObservableProperty]
     private string _selectedCategory = "All";
 
+    partial void OnSelectedAssetChanged(AssetBrowserItemViewModel? value)
+    {
+        if (value is not null && !value.IsRenaming)
+            value.EditableName = value.IsDirectory ? value.Name : Path.GetFileNameWithoutExtension(value.Name);
+    }
+
     public async Task OpenProjectAsync(string projectRoot, CancellationToken cancellationToken = default)
     {
         _projectRoot = Path.GetFullPath(projectRoot);
@@ -76,6 +82,134 @@ public sealed partial class AssetBrowserViewModel(IAssetBrowserService assets, I
 
         SpriteCreateRequested?.Invoke(this, CreateSpriteEntity(SelectedAsset.RelativePath, 160, 160));
         Status = $"Sprite criado: {SelectedAsset.RelativePath}";
+    }
+
+    [RelayCommand]
+    private async Task CreateScriptAsync(CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_projectRoot))
+        {
+            Status = "Abra um projeto antes de criar scripts.";
+            return;
+        }
+
+        var scriptsRoot = Path.Combine(_projectRoot, "scripts");
+        Directory.CreateDirectory(scriptsRoot);
+
+        var name = "new_script.lua";
+        var fullPath = Path.Combine(scriptsRoot, name);
+        var index = 1;
+        while (File.Exists(fullPath))
+        {
+            name = $"new_script_{index++}.lua";
+            fullPath = Path.Combine(scriptsRoot, name);
+        }
+
+        await File.WriteAllTextAsync(fullPath, """
+local M = {}
+
+function M.init(self)
+end
+
+function M.update(self, dt)
+end
+
+return M
+""", cancellationToken).ConfigureAwait(true);
+
+        await OpenScriptsAsync(cancellationToken).ConfigureAwait(true);
+        SelectedAsset = Entries.FirstOrDefault(e => e.FullPath.Equals(fullPath, StringComparison.OrdinalIgnoreCase));
+        if (SelectedAsset is not null)
+        {
+            SelectedAsset.EditableName = Path.GetFileNameWithoutExtension(name);
+            SelectedAsset.IsRenaming = true;
+        }
+        Status = $"Script criado: scripts/{name}";
+        log.Post(EditorLogLevel.Info, $"[ASSET] Script criado: scripts/{name}");
+    }
+
+    [RelayCommand]
+    private void RenameSelected()
+        => StartRenameSelected();
+
+    public void StartRenameSelected()
+    {
+        if (SelectedAsset is null || SelectedAsset.IsDirectory)
+        {
+            Status = "Selecione um arquivo para renomear.";
+            return;
+        }
+
+        SelectedAsset.EditableName = Path.GetFileNameWithoutExtension(SelectedAsset.Name);
+        SelectedAsset.IsRenaming = true;
+        Status = "Digite o novo nome direto no item e pressione Enter.";
+    }
+
+    public void CancelRename(AssetBrowserItemViewModel? item = null)
+    {
+        var target = item ?? SelectedAsset;
+        if (target is null || !target.IsRenaming)
+            return;
+
+        target.EditableName = target.IsDirectory ? target.Name : Path.GetFileNameWithoutExtension(target.Name);
+        target.IsRenaming = false;
+        Status = "Renomear cancelado.";
+    }
+
+    public async Task CommitRenameAsync(AssetBrowserItemViewModel? item, CancellationToken cancellationToken = default)
+    {
+        if (item is null || item.IsDirectory || !item.IsRenaming)
+        {
+            return;
+        }
+
+        var oldPath = item.FullPath;
+        var dir = Path.GetDirectoryName(oldPath);
+        if (dir is null) return;
+
+        var ext = Path.GetExtension(oldPath);
+        var requested = SanitizeFileName(item.EditableName, Path.GetFileNameWithoutExtension(oldPath));
+        var newName = EnsureExtension(requested, ext);
+        var newPath = Path.Combine(dir, newName);
+
+        if (newPath.Equals(oldPath, StringComparison.OrdinalIgnoreCase))
+        {
+            item.IsRenaming = false;
+            item.EditableName = Path.GetFileNameWithoutExtension(item.Name);
+            Status = "Nome mantido.";
+            return;
+        }
+
+        if (File.Exists(newPath))
+        {
+            Status = $"Ja existe um arquivo com esse nome: {newName}";
+            return;
+        }
+
+        File.Move(oldPath, newPath);
+        await OpenFolderAsync(dir, cancellationToken).ConfigureAwait(true);
+        SelectedAsset = Entries.FirstOrDefault(e => e.FullPath.Equals(newPath, StringComparison.OrdinalIgnoreCase));
+        Status = $"Renomeado: {newName}";
+        log.Post(EditorLogLevel.Info, $"[ASSET] Arquivo renomeado: {newName}");
+    }
+
+    [RelayCommand]
+    private async Task DeleteSelectedAsync(CancellationToken cancellationToken)
+    {
+        if (SelectedAsset is null || SelectedAsset.IsDirectory)
+        {
+            Status = "Selecione um arquivo para deletar.";
+            return;
+        }
+
+        var path = SelectedAsset.FullPath;
+        var dir = Path.GetDirectoryName(path);
+        if (dir is null) return;
+
+        File.Delete(path);
+        await OpenFolderAsync(dir, cancellationToken).ConfigureAwait(true);
+        Status = $"Arquivo deletado: {Path.GetFileName(path)}";
+        log.Post(EditorLogLevel.Warning, $"[ASSET] Arquivo deletado: {path}");
     }
 
     public SceneEntityDto CreateSpriteEntity(string texturePath, float x, float y)
@@ -181,7 +315,7 @@ public sealed partial class AssetBrowserViewModel(IAssetBrowserService assets, I
 
     [RelayCommand]
     private async Task OpenScriptsAsync(CancellationToken cancellationToken)
-        => await OpenCategoryAsync("Scripts", Path.Combine(_projectRoot, "scenes"), cancellationToken).ConfigureAwait(true);
+        => await OpenCategoryAsync("Scripts", Path.Combine(_projectRoot, "scripts"), cancellationToken).ConfigureAwait(true);
 
     [RelayCommand]
     private async Task OpenFontsAsync(CancellationToken cancellationToken)
@@ -190,6 +324,7 @@ public sealed partial class AssetBrowserViewModel(IAssetBrowserService assets, I
     private async Task OpenCategoryAsync(string category, string folder, CancellationToken cancellationToken)
     {
         SelectedCategory = category;
+        Directory.CreateDirectory(folder);
         await OpenFolderAsync(folder, cancellationToken).ConfigureAwait(true);
     }
 
@@ -202,6 +337,7 @@ public sealed partial class AssetBrowserViewModel(IAssetBrowserService assets, I
         return new AssetBrowserItemViewModel
         {
             Name = entry.Name,
+            EditableName = entry.IsDirectory ? entry.Name : Path.GetFileNameWithoutExtension(entry.Name),
             FullPath = entry.FullPath,
             RelativePath = rel,
             Kind = kind,
@@ -214,10 +350,13 @@ public sealed partial class AssetBrowserViewModel(IAssetBrowserService assets, I
 
     private string MakeRelativePath(string fullPath)
     {
-        if (string.IsNullOrWhiteSpace(_resRoot) || !fullPath.StartsWith(Path.GetFullPath(_resRoot), StringComparison.OrdinalIgnoreCase))
-            return Path.GetFileName(fullPath);
+        if (!string.IsNullOrWhiteSpace(_resRoot) && fullPath.StartsWith(Path.GetFullPath(_resRoot), StringComparison.OrdinalIgnoreCase))
+            return Path.GetRelativePath(_resRoot, fullPath).Replace('\\', '/');
 
-        return Path.GetRelativePath(_resRoot, fullPath).Replace('\\', '/');
+        if (!string.IsNullOrWhiteSpace(_projectRoot) && fullPath.StartsWith(Path.GetFullPath(_projectRoot), StringComparison.OrdinalIgnoreCase))
+            return Path.GetRelativePath(_projectRoot, fullPath).Replace('\\', '/');
+
+        return Path.GetFileName(fullPath);
     }
 
     private static string Classify(AssetEntry entry)
@@ -305,5 +444,25 @@ public sealed partial class AssetBrowserViewModel(IAssetBrowserService assets, I
         {
             return null;
         }
+    }
+
+    private static string SanitizeFileName(string? value, string fallback)
+    {
+        var name = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+        foreach (var invalid in Path.GetInvalidFileNameChars())
+            name = name.Replace(invalid, '_');
+
+        name = name.Replace('\\', '_').Replace('/', '_').Trim();
+        return string.IsNullOrWhiteSpace(name) ? fallback : name;
+    }
+
+    private static string EnsureExtension(string name, string extension)
+    {
+        if (string.IsNullOrWhiteSpace(extension))
+            return name;
+
+        return Path.HasExtension(name)
+            ? name
+            : name + extension;
     }
 }

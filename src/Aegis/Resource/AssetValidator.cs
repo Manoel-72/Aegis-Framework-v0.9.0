@@ -28,7 +28,7 @@ public sealed class AssetValidationReport
 public static class AssetValidator
 {
     private static readonly Regex LuaStringArgRegex = new(
-        @"aegis\.(?<fn>playSound|playSoundEx|playSoundAt|playMusic|crossfadeTo|playMusicLooped|loadTilemap|loadAtlas)\s*\(\s*[""'](?<path>[^""']+)[""']",
+        @"aegis\.(?<fn>asset|playSound|playSoundEx|playSoundAt|playMusic|crossfadeTo|playMusicLooped|loadTilemap|loadAtlas)\s*\(\s*[""'](?<path>[^""']+)[""']",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly Regex LuaPathFieldRegex = new(
@@ -182,6 +182,12 @@ public static class AssetValidator
         if (!LooksLikeAssetPath(rel))
             return;
 
+        if (fn == "asset")
+        {
+            ValidateAssetPath(root, rel, sourceFile, report);
+            return;
+        }
+
         if (fn.StartsWith("play", StringComparison.OrdinalIgnoreCase) || fn == "crossfadeTo")
         {
             ValidateAssetPath(root, rel.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) ? rel : $"audio/{rel}", sourceFile, report);
@@ -248,8 +254,9 @@ public static class AssetValidator
 
                 if (scene.TryGetProperty("entities", out var entities) && entities.ValueKind == JsonValueKind.Array)
                 {
+                    var sceneTargets = CollectSceneTargets(entities);
                     foreach (var entity in entities.EnumerateArray())
-                        ValidateSceneEntity(root, file, entity, report);
+                        ValidateSceneEntity(root, file, entity, report, sceneTargets);
                 }
 
                 if (scene.TryGetProperty("tilemaps", out var tilemaps) && tilemaps.ValueKind == JsonValueKind.Array)
@@ -270,7 +277,12 @@ public static class AssetValidator
         }
     }
 
-    private static void ValidateSceneEntity(string root, string sceneFile, JsonElement entity, AssetValidationReport report)
+    private static void ValidateSceneEntity(
+        string root,
+        string sceneFile,
+        JsonElement entity,
+        AssetValidationReport report,
+        IReadOnlySet<string> sceneTargets)
     {
         if (TryGetString(entity, "texturePath", out var texturePath))
             ValidateAssetPath(root, texturePath, sceneFile, report);
@@ -284,7 +296,7 @@ public static class AssetValidator
         if (components.ValueKind == JsonValueKind.Object)
         {
             foreach (var component in components.EnumerateObject())
-                ValidateSceneComponent(root, sceneFile, component.Name, component.Value, report);
+                ValidateSceneComponent(root, sceneFile, component.Name, component.Value, report, sceneTargets);
         }
         else if (components.ValueKind == JsonValueKind.Array)
         {
@@ -294,12 +306,18 @@ public static class AssetValidator
                     continue;
 
                 if (component.TryGetProperty("properties", out var props))
-                    ValidateSceneComponent(root, sceneFile, type, props, report);
+                    ValidateSceneComponent(root, sceneFile, type, props, report, sceneTargets);
             }
         }
     }
 
-    private static void ValidateSceneComponent(string root, string sceneFile, string type, JsonElement props, AssetValidationReport report)
+    private static void ValidateSceneComponent(
+        string root,
+        string sceneFile,
+        string type,
+        JsonElement props,
+        AssetValidationReport report,
+        IReadOnlySet<string> sceneTargets)
     {
         if (props.ValueKind != JsonValueKind.Object)
             return;
@@ -316,6 +334,42 @@ public static class AssetValidator
             if (TryGetString(props, "file", out var script) || TryGetString(props, "path", out script))
                 ValidateProjectPath(root, script, sceneFile, report);
         }
+        else if (type.Equals("AudioSource", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryGetString(props, "clip", out var clip) || TryGetString(props, "file", out clip) || TryGetString(props, "path", out clip))
+                ValidateAssetPath(root, clip.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) ? clip : $"audio/{clip}", sceneFile, report);
+        }
+        else if (type.Equals("Camera", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryGetString(props, "follow_target", out var target) || TryGetString(props, "followTarget", out target))
+            {
+                if (!sceneTargets.Contains(target.Trim()))
+                    report.Add(AssetIssueSeverity.Warning, "scene.camera.follow.missing", $"Camera follow target not found in scene by id/name: {target}", sceneFile);
+            }
+        }
+        else if (type.Equals("Collider2D", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryGetString(props, "shape", out var shape) && shape.Equals("polygon", StringComparison.OrdinalIgnoreCase))
+                report.Add(AssetIssueSeverity.Warning, "scene.collider.polygon.experimental", "Polygon Collider2D is saved by the editor but not fully supported by runtime yet.", sceneFile);
+        }
+        else if (type.Equals("TagLayer", StringComparison.OrdinalIgnoreCase))
+        {
+            report.Add(AssetIssueSeverity.Info, "scene.taglayer.saved", "TagLayer is saved for editor/scripts; project tag/layer registry is not enforced yet.", sceneFile);
+        }
+    }
+
+    private static HashSet<string> CollectSceneTargets(JsonElement entities)
+    {
+        var targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entity in entities.EnumerateArray())
+        {
+            if (TryGetString(entity, "id", out var id))
+                targets.Add(id.Trim());
+            if (TryGetString(entity, "name", out var name))
+                targets.Add(name.Trim());
+        }
+
+        return targets;
     }
 
     private static void ValidateAssetPath(string root, string rel, string sourceFile, AssetValidationReport report, string? baseDir = null)

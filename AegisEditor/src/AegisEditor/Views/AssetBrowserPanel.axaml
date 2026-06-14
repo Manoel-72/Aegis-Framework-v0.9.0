@@ -20,8 +20,10 @@
             </Border>
 
             <Grid DockPanel.Dock="Top"
-                  ColumnDefinitions="Auto,Auto,*,Auto,Auto"
-                  Margin="6,6,6,6">
+                  RowDefinitions="Auto,Auto"
+                  ColumnDefinitions="Auto,Auto,*,Auto"
+                  Margin="6,6,6,6"
+                  RowSpacing="6">
                 <Button Content="Back"
                         Padding="8,5"
                         Command="{Binding UpCommand}" />
@@ -32,19 +34,35 @@
                         Command="{Binding OpenSelectedCommand}" />
                 <TextBox Grid.Column="2"
                          Margin="6,0"
-                           Text="{Binding CurrentFolder}"
-                           FontFamily="{DynamicResource AeFontMono}"
-                           FontSize="11"
+                         Text="{Binding CurrentFolder}"
+                         FontFamily="{DynamicResource AeFontMono}"
+                         FontSize="11"
                          IsReadOnly="True" />
                 <Button Grid.Column="3"
-                        Content="+ Sprite"
-                        Padding="8,5"
-                        Command="{Binding CreateSpriteFromSelectedCommand}" />
-                <Button Grid.Column="4"
                         Content="Validate"
                         Margin="6,0,0,0"
                         Padding="8,5"
                         Command="{Binding ValidateProjectCommand}" />
+
+                <StackPanel Grid.Row="1"
+                            Grid.Column="0"
+                            Grid.ColumnSpan="4"
+                            Orientation="Horizontal"
+                            Spacing="6"
+                            Margin="0">
+                    <Button Content="+ Sprite"
+                            Padding="8,5"
+                            Command="{Binding CreateSpriteFromSelectedCommand}" />
+                    <Button Content="+ Script"
+                            Padding="8,5"
+                            Command="{Binding CreateScriptCommand}" />
+                    <Button Content="Rename"
+                            Padding="8,5"
+                            Command="{Binding RenameSelectedCommand}" />
+                    <Button Content="Delete"
+                            Padding="8,5"
+                            Command="{Binding DeleteSelectedCommand}" />
+                </StackPanel>
             </Grid>
 
             <Grid ColumnDefinitions="108,*">
@@ -93,6 +111,7 @@
                          SelectedItem="{Binding SelectedAsset}"
                          DoubleTapped="AssetList_OnDoubleTapped"
                          PointerPressed="AssetList_OnPointerPressed"
+                         KeyDown="AssetList_OnKeyDown"
                          BorderThickness="0"
                          Background="#082033">
                     <ListBox.ItemTemplate>
@@ -122,8 +141,17 @@
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <TextBlock Text="{Binding Name}"
+                                                   IsVisible="{Binding !IsRenaming}"
                                                    FontSize="12"
                                                    TextTrimming="CharacterEllipsis" />
+                                        <TextBox Text="{Binding EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 IsVisible="{Binding IsRenaming}"
+                                                 FontSize="12"
+                                                 MinWidth="140"
+                                                 FontFamily="{DynamicResource AeFontMono}"
+                                                 KeyDown="AssetRenameBox_OnKeyDown"
+                                                 KeyUp="AssetRenameBox_OnKeyUp"
+                                                 LostFocus="AssetRenameBox_OnLostFocus" />
                                         <TextBlock Text="!"
                                                    IsVisible="{Binding IsBroken}"
                                                    Foreground="{DynamicResource AeError}"

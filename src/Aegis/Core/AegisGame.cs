@@ -15,6 +15,8 @@ namespace Aegis.Core;
 
 public sealed class AegisGame : Game
 {
+    public static Color ClearColor { get; set; } = Color.Black;
+
     public static AegisGame Current { get; private set; } = null!;
 
     private readonly App _app;
@@ -133,6 +135,7 @@ public sealed class AegisGame : Game
             _app.Lua.UpdateDraggables();      // Final: drag & drop
             _app.Lua.UpdateAutozoom(dt);      // Final: câmera autozoom por densidade
             _app.Lua.CallFunction("aegis_update", dt);
+            _app.Lua.UpdateSceneScripts(dt);
 
             var sceneStackPaused = SceneManager.Instance.IsSceneStackActive;
             if (!sceneStackPaused)
@@ -161,7 +164,7 @@ public sealed class AegisGame : Game
 
     protected override void Draw(GameTime gameTime)
     {
-        GraphicsDevice.Clear(Color.Black);
+        GraphicsDevice.Clear(ClearColor);
 
         var cam = Camera2D.Instance;
         if (cam.Active)

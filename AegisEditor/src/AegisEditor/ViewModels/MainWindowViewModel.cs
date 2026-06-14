@@ -145,6 +145,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
 
         GamePreviewFolder = fullPath;
+        Directory.CreateDirectory(Path.Combine(fullPath, "scripts"));
         Viewport.ProjectRoot = fullPath;
         CurrentProjectName = Path.GetFileName(fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         IsHubVisible = false;
@@ -1126,6 +1127,12 @@ end
             sprite.Properties["color"] = JsonSerializer.SerializeToElement(new[] { 1f, 1f, 1f, 1f });
         if (!sprite.Properties.ContainsKey("flip_x"))
             sprite.Properties["flip_x"] = JsonSerializer.SerializeToElement(false);
+        if (!sprite.Properties.ContainsKey("flip_y"))
+            sprite.Properties["flip_y"] = JsonSerializer.SerializeToElement(false);
+        if (!sprite.Properties.ContainsKey("layer"))
+            sprite.Properties["layer"] = JsonSerializer.SerializeToElement("Default");
+        if (!sprite.Properties.ContainsKey("sorting_order"))
+            sprite.Properties["sorting_order"] = JsonSerializer.SerializeToElement(0);
     }
 
     private static ComponentDto GetOrAddComponent(SceneEntityDto entity, string type)
@@ -1192,6 +1199,7 @@ end
         Directory.CreateDirectory(Path.Combine(projectPath, "res", "audio"));
         Directory.CreateDirectory(Path.Combine(projectPath, "res", "tilemaps"));
         Directory.CreateDirectory(Path.Combine(projectPath, "scenes"));
+        Directory.CreateDirectory(Path.Combine(projectPath, "scripts"));
 
         var name = Path.GetFileName(projectPath);
         File.WriteAllText(Path.Combine(projectPath, "aegis.toml"), $$"""

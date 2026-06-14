@@ -26,6 +26,20 @@ local GROUND_ACCEL = 1550
 local AIR_ACCEL = 760
 local GROUND_DECEL = 2050
 local AIR_DECEL = 520
+local ASSETS = {
+    heart = aegis.asset("sprites/heart.png"),
+    coin = aegis.asset("sprites/coin.png"),
+    enemy = aegis.asset("sprites/enemy.png"),
+    playerSheet = aegis.asset("sprites/player-sheet.png"),
+    playerAtlas = aegis.asset("sprites/player-sheet.json"),
+    sfxCoin = aegis.asset("audio/coin.wav"),
+    sfxHurt = aegis.asset("audio/hurt.wav"),
+    sfxDeath = aegis.asset("audio/death.wav"),
+    sfxLand = aegis.asset("audio/land.wav"),
+    sfxJump = aegis.asset("audio/jump.wav"),
+    sfxEnemy = aegis.asset("audio/enemy.wav"),
+    music = aegis.asset("audio/music.wav"),
+}
 
 local function approach(current, target, amount)
     if current < target then
@@ -123,14 +137,14 @@ local function drawHudChrome()
     for i = 1, 3 do
         local hx = heartStartX + (i - 1) * heartGap
         local alpha = i <= hud.lives and 1.0 or 0.28
-        aegis.drawSprite("sprites/heart.png", hx, iconY, heartScale, 1, 1, 1, alpha)
+        aegis.drawSprite(ASSETS.heart, hx, iconY, heartScale, 1, 1, 1, alpha)
     end
 
     -- Direita superior: moedas
     local coinIconX = sw - 72
     local coinText = tostring(hud.coins) .. "/" .. tostring(hud.coinMax)
     aegis.drawRect(coinIconX - 10, 12, 88, 34, 0.08, 0.09, 0.12, 0.75)
-    aegis.drawSprite("sprites/coin.png", coinIconX, iconY, coinScale, 1, 1, 1, 1)
+    aegis.drawSprite(ASSETS.coin, coinIconX, iconY, coinScale, 1, 1, 1, 1)
     aegis.drawText(coinText, coinIconX + 28, iconY + 5, 1.0, 0.88, 0.35)
 
     -- Score abaixo das moedas (direita)
@@ -227,7 +241,7 @@ local function drawTutorialPopup()
 end
 
 local function spawnCoin(x, y)
-    local s = aegis.newSprite("sprites/coin.png")
+    local s = aegis.newSprite(ASSETS.coin)
     aegis.setPosition(s, x, y)
     aegis.setZ(s, 20)
     local c = aegis.addCircleCollider(s, 12)
@@ -241,7 +255,7 @@ local function spawnCoin(x, y)
         hud.coins = hud.coins + 1
         syncHud()
         updateGoalState()
-        aegis.playSound("coin.wav")
+        aegis.playSound(ASSETS.sfxCoin)
         aegis.burst(aegis.getX(s)+12, aegis.getY(s)+12, { count=18, speed=90, life=0.45, size=3, r=1, g=0.85, b=0.25 })
         pendingRemoveCoins[#pendingRemoveCoins + 1] = s
     end)
@@ -264,7 +278,7 @@ local function spawnCheckpoint(x, y)
         checkpointY = y
         aegis.setAlpha(checkpoint, 1.0)
         showLevelMessage("Checkpoint ativado", 1.3)
-        aegis.playSound("coin.wav")
+        aegis.playSound(ASSETS.sfxCoin)
         aegis.burst(x + 13, y + 24, {
             count = 22, speed = 75, life = 0.5, size = 3,
             r = 0.35, g = 0.85, b = 1.0
@@ -287,7 +301,7 @@ local function damagePlayer(enemy)
     hurtCooldown = 0.9
     GAME.lives = (GAME.lives or 3) - 1
     syncHud()
-    aegis.playSoundAt("hurt.wav", aegis.getX(enemy.obj), aegis.getY(enemy.obj), { maxDist = 500 })
+    aegis.playSoundAt(ASSETS.sfxHurt, aegis.getX(enemy.obj), aegis.getY(enemy.obj), { maxDist = 500 })
     aegis.flashScreen({ r=1, g=0.1, b=0.1 }, 0.12)
     aegis.screenShake(5, 0.18)
     aegis.tween(player, { alpha = 0.35 }, 0.08, "out", function()
@@ -295,13 +309,13 @@ local function damagePlayer(enemy)
     end)
     if GAME.lives <= 0 then
         aegis.burst(aegis.getX(player)+16, aegis.getY(player)+16, { count=50, speed=160, life=0.75, size=4, r=0.3, g=0.8, b=1.0 })
-        aegis.playSound("death.wav")
+        aegis.playSound(ASSETS.sfxDeath)
         goToScene("gameover", 0.35)
     end
 end
 
 local function spawnEnemy(x, y, patrolLeft, patrolRight)
-    local obj = aegis.newSprite("sprites/enemy.png")
+    local obj = aegis.newSprite(ASSETS.enemy)
     aegis.setPosition(obj, x, y)
     aegis.setZ(obj, 15)
     local enemy = {
@@ -324,6 +338,7 @@ local function spawnEnemy(x, y, patrolLeft, patrolRight)
 end
 
 function aegis_init()
+    aegis.validateAssets()
     aegis.log("[scene] level init: " .. tostring(levelIndex()))
     aegis.clearAll()
     local li = levelIndex()
@@ -378,7 +393,7 @@ function aegis_init()
 
     aegis.setGroupVolume("sfx", 0.8)
     aegis.setGroupVolume("music", 0.25)
-    if not aegis.musicPlaying() then aegis.playMusic("music.wav", true) end
+    if not aegis.musicPlaying() then aegis.playMusic(ASSETS.music, true) end
 
     local sky = aegis.newRect(worldW, worldH, 0.32, 0.39, 0.52)
     aegis.setPosition(sky, 0, camTop)
@@ -406,8 +421,8 @@ function aegis_init()
 
 
 
-    player = aegis.newSprite("sprites/player-sheet.png")
-    atlas = aegis.loadAtlas("sprites/player-sheet.json")
+    player = aegis.newSprite(ASSETS.playerSheet)
+    atlas = aegis.loadAtlas(ASSETS.playerAtlas)
     aegis.setAtlasFrame(player, atlas, "idle_00")
     anim = aegis.newAtlasAnimator(player, atlas)
     aegis.addAtlasClip(anim, "idle", { "idle_00" }, 1)
@@ -477,11 +492,11 @@ function aegis_init()
         if not goalUnlocked() then
             local missing = hud.requiredCoins - hud.coins
             showLevelMessage("Colete mais " .. tostring(missing) .. " moeda(s) para abrir a porta", 1.6)
-            aegis.playSound("hurt.wav")
+            aegis.playSound(ASSETS.sfxHurt)
             return
         end
         levelComplete = true
-        aegis.playSound("land.wav")
+        aegis.playSound(ASSETS.sfxLand)
         GAME.level = li + 1
         if GAME.level > GAME.maxLevel then
             GAME.won = true
@@ -575,7 +590,7 @@ local function updatePlayer(dt)
         coyote = 0
         jumpBuffer = 0
         jumpCooldown = 0.12
-        aegis.playSound("jump.wav")
+        aegis.playSound(ASSETS.sfxJump)
         aegis.burst(aegis.getX(player)+16, aegis.getY(player)+28, { count=14, speed=80, life=0.35, size=3, r=0.7, g=0.9, b=1.0 })
     end
 
@@ -607,7 +622,7 @@ local function updateEnemies(dt)
             e.pathTimer = 0.35
             e.path = aegis.navFindPath(nav, aegis.getX(e.obj), aegis.getY(e.obj), aegis.getX(player), aegis.getY(player))
             e.pathIndex = 2
-            aegis.playSoundAt("enemy.wav", aegis.getX(e.obj), aegis.getY(e.obj), { maxDist = 420, volume = 0.18 })
+            aegis.playSoundAt(ASSETS.sfxEnemy, aegis.getX(e.obj), aegis.getY(e.obj), { maxDist = 420, volume = 0.18 })
         end
 
         local moved = false

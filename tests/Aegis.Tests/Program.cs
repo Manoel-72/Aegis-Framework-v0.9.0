@@ -1,5 +1,6 @@
 using Aegis.CLI;
 using Aegis.Core;
+using Aegis.Display;
 using Aegis.Physics;
 using Aegis.Resource;
 using Aegis.Scene;
@@ -22,6 +23,7 @@ internal static class Program
         Run("ConfigManager writes and loads aegis.cfg", ConfigManagerPersistsConfig);
         Run("ComponentFactory creates group on world and UI roots", ComponentFactoryCreatesGroups);
         Run("LuaRuntime seeded random is repeatable", LuaRuntimeSeededRandomIsRepeatable);
+        Run("LuaRuntime asset API validates project assets", LuaRuntimeAssetApiValidatesAssets);
         Run("FontManager resolves project fallback font candidates", FontManagerResolvesProjectFallbackFont);
         Run("FontManager normalizes font size", FontManagerNormalizesFontSize);
         Run("AssetManifest categorizes project assets", AssetManifestCategorizesProjectAssets);
@@ -31,6 +33,7 @@ internal static class Program
         Run("TiledMapDocument parses object layers and properties", TiledMapDocumentParsesObjects);
         Run("SceneJsonLoader instantiates editor scene entities", SceneJsonLoaderInstantiatesEntities);
         Run("SceneJsonLoader reads component-style scene JSON", SceneJsonLoaderReadsComponentStyleScene);
+        Run("SceneJsonLoader resolves camera follow target", SceneJsonLoaderResolvesCameraFollowTarget);
         Run("ProjectCreator creates a runnable project skeleton", ProjectCreatorCreatesSkeleton);
         Run("SceneManager transition none loads registered scene", SceneManagerTransitionLoadsScene);
         Run("SceneManager push and pop restores Lua callbacks", SceneManagerPushPopRestoresCallbacks);
@@ -138,6 +141,48 @@ internal static class Program
         lua.SetRandomSeed(2026);
         AssertEqual(a, lua.RandomInt(1, 1000), "same seed should repeat randomInt");
         AssertEqual(b, lua.RandomFloat(0f, 1f), "same seed should repeat randomFloat");
+    }
+
+    private static void LuaRuntimeAssetApiValidatesAssets()
+    {
+        using var dir = new TempDir();
+        var previous = Directory.GetCurrentDirectory();
+        try
+        {
+            Directory.SetCurrentDirectory(dir.Path);
+            Directory.CreateDirectory(Path.Combine(dir.Path, "res", "sprites"));
+            File.WriteAllText(Path.Combine(dir.Path, "main.lua"), "function aegis_init() end\n");
+            File.WriteAllText(Path.Combine(dir.Path, "aegis.toml"), "entry = \"main.lua\"\n");
+            File.WriteAllText(Path.Combine(dir.Path, "aegis.cfg"), "{}\n");
+            WriteMinimalPng(Path.Combine(dir.Path, "res", "sprites", "player.png"));
+
+            var app = new App("Asset API Test", 640, 480)
+            {
+                S2D = new Scene2D(),
+                Ui2D = new Scene2D(),
+            };
+            using var lua = new Aegis.Scripting.LuaRuntime(app);
+
+            AssertEqual("sprites/player.png", lua.Asset("sprites\\player.png"), "asset should normalize slashes");
+            AssertTrue(lua.AssetExists("sprites/player.png"), "assetExists should return true for existing asset");
+            AssertTrue(lua.ValidateAssets(), "validateAssets should pass for project with referenced files");
+
+            var missingThrown = false;
+            try
+            {
+                _ = lua.Asset("sprites/missing.png");
+            }
+            catch (FileNotFoundException ex)
+            {
+                missingThrown = ex.Message.Contains("Asset nao encontrado", StringComparison.OrdinalIgnoreCase);
+            }
+
+            AssertTrue(missingThrown, "missing asset should throw a clear asset error");
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(previous);
+        }
     }
 
     private static void FontManagerResolvesProjectFallbackFont()
@@ -406,6 +451,85 @@ end
         PhysicsWorld.Instance.Reset();
     }
 
+    private static void SceneJsonLoaderResolvesCameraFollowTarget()
+    {
+        using var dir = new TempDir();
+        var scenePath = Path.Combine(dir.Path, "camera-follow.scene.json");
+
+        File.WriteAllText(scenePath, """
+{
+  "format": "aegis.scene",
+  "version": 2,
+  "name": "Camera Follow Scene",
+  "kind": "2d",
+  "entities": [
+    {
+      "id": "player-id",
+      "name": "Player By Id",
+      "type": "Group",
+      "components": {
+        "Transform": { "position": [120, 240], "scale": [1, 1] }
+      }
+    },
+    {
+      "id": "camera-id",
+      "name": "Main Camera",
+      "type": "Camera",
+      "components": {
+        "Transform": { "position": [0, 0], "scale": [1, 1] },
+        "Camera": { "zoom": 1, "follow_target": "player-id" }
+      }
+    }
+  ],
+  "tilemaps": []
+}
+""");
+
+        Camera2D.Instance.ResetForNewSession();
+        _ = new SceneJsonLoader().Load(scenePath, new Scene2D());
+        AssertTrue(Camera2D.Instance.Active, "camera should activate when follow_target resolves by id");
+        Camera2D.Instance.Update(1f);
+        AssertEqual(120f, Camera2D.Instance.X, "camera should follow target resolved by id on x");
+        AssertEqual(240f, Camera2D.Instance.Y, "camera should follow target resolved by id on y");
+
+        File.WriteAllText(scenePath, """
+{
+  "format": "aegis.scene",
+  "version": 2,
+  "name": "Camera Follow Scene",
+  "kind": "2d",
+  "entities": [
+    {
+      "id": "hero-id",
+      "name": "Hero By Name",
+      "type": "Group",
+      "components": {
+        "Transform": { "position": [320, 160], "scale": [1, 1] }
+      }
+    },
+    {
+      "id": "camera-name",
+      "name": "Main Camera",
+      "type": "Camera",
+      "components": {
+        "Transform": { "position": [0, 0], "scale": [1, 1] },
+        "Camera": { "zoom": 1, "follow_target": "Hero By Name" }
+      }
+    }
+  ],
+  "tilemaps": []
+}
+""");
+
+        Camera2D.Instance.ResetForNewSession();
+        _ = new SceneJsonLoader().Load(scenePath, new Scene2D());
+        AssertTrue(Camera2D.Instance.Active, "camera should activate when follow_target resolves by name");
+        Camera2D.Instance.Update(1f);
+        AssertEqual(320f, Camera2D.Instance.X, "camera should follow target resolved by name on x");
+        AssertEqual(160f, Camera2D.Instance.Y, "camera should follow target resolved by name on y");
+        Camera2D.Instance.ResetForNewSession();
+    }
+
     private static void ProjectCreatorCreatesSkeleton()
     {
         using var dir = new TempDir();
@@ -617,6 +741,13 @@ entry = "main.lua"
         writer.Write(dataSize);
         for (var i = 0; i < sampleCount; i++)
             writer.Write((short)0);
+    }
+
+    private static void WriteMinimalPng(string path)
+    {
+        const string png1x1 =
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+        File.WriteAllBytes(path, Convert.FromBase64String(png1x1));
     }
 
     private static string FindRepoRoot()

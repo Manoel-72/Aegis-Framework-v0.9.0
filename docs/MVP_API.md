@@ -19,6 +19,31 @@ para templates, exemplos e IA.
 - `aegis_draw`
 - `aegis_draw_ui`
 
+### Assets
+
+Todos os caminhos sao relativos a `res/`. Codigo novo deve validar assets cedo:
+
+```lua
+local playerPng = aegis.asset("sprites/player.png")
+local ok = aegis.validateAssets()
+```
+
+- `aegis.asset(path)`: valida existencia e retorna caminho normalizado.
+- `aegis.assetExists(path)`: consulta segura sem exception.
+- `aegis.validateAssets()`: roda o `AssetValidator` no projeto atual.
+- `aegis.assetReport()`: retorna `{ ok, errors, warnings, issues }`.
+
+### Erros Lua
+
+Erros de script sao embrulhados pela engine com:
+
+- fase (`boot`, `aegis_init`, `aegis_update`, `aegis_draw`, cena ou script de entidade);
+- arquivo;
+- mensagem original do Lua;
+- dica curta de correcao.
+
+Isso nao substitui testes, mas melhora a primeira experiencia e o `crash.log`.
+
 ### Cena
 
 - `aegis.registerScene(name, file)`

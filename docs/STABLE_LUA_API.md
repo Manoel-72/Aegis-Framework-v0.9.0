@@ -14,7 +14,31 @@ a superfície menor abaixo.
 - Criação de componentes deve ficar em fábricas isoladas.
 - O caminho oficial de criação é `aegis.create(tipo, opts)`.
 - Remoção oficial é `aegis.destroy(obj)`.
+- Caminhos de assets devem passar por `aegis.asset("pasta/arquivo.ext")`.
 - Métodos antigos como `newSprite`, `newLabel`, `newRect` e `newProgressBar` são aliases legados.
+
+## Assets Oficiais
+
+Todos os caminhos de assets sao relativos a `res/`.
+
+```lua
+local playerPng = aegis.asset("sprites/player.png")
+local jumpWav = aegis.asset("audio/jump.wav")
+
+local ok = aegis.validateAssets()
+if not ok then
+  aegis.log("Projeto tem assets invalidos. Rode: aegis doctor .")
+end
+```
+
+APIs estaveis:
+
+- `aegis.asset(path)`: valida que o arquivo existe em `res/` e retorna o caminho normalizado.
+- `aegis.assetExists(path)`: retorna `true/false` sem lancar erro.
+- `aegis.validateAssets()`: roda o validador do projeto atual e registra erros/warnings no log.
+- `aegis.assetReport()`: retorna tabela Lua com `ok`, `errors`, `warnings` e `issues`.
+
+Use `aegis.asset(...)` em sprites, atlas, tilemaps e sons para descobrir erros cedo.
 
 ## Criação Recomendada
 
@@ -27,7 +51,7 @@ texto rasterizado deixa a fonte pixelada.
 
 ```lua
 local player = aegis.create("sprite", {
-  path = "res/sprites/player.png",
+  path = aegis.asset("sprites/player.png"),
   x = 100,
   y = 120,
   pivotX = 0.5,
@@ -94,7 +118,7 @@ Use `newAnimator` para spritesheet em grade e `newAtlasAnimator` para atlas
 Aseprite JSON.
 
 ```lua
-local sprite = aegis.create("sprite", { path = "sprites/player.png" })
+local sprite = aegis.create("sprite", { path = aegis.asset("sprites/player.png") })
 local anim = aegis.newAnimator(sprite, 32, 32)
 
 aegis.addClip(anim, "idle", { 0, 1, 2, 3 }, 5, true)

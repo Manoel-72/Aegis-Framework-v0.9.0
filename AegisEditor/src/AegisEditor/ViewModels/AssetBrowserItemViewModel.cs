@@ -1,10 +1,18 @@
 using Avalonia.Media.Imaging;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace AegisEditor.ViewModels;
 
-public sealed class AssetBrowserItemViewModel
+public sealed partial class AssetBrowserItemViewModel : ObservableObject
 {
-    public required string Name { get; init; }
+    [ObservableProperty]
+    private string _name = string.Empty;
+
+    [ObservableProperty]
+    private string _editableName = string.Empty;
+
+    [ObservableProperty]
+    private bool _isRenaming;
 
     public required string FullPath { get; init; }
 
@@ -32,4 +40,10 @@ public sealed class AssetBrowserItemViewModel
         "Font" => "TTF",
         _ => "FILE",
     };
+
+    partial void OnNameChanged(string value)
+    {
+        if (!IsRenaming)
+            EditableName = Path.GetFileNameWithoutExtension(value);
+    }
 }

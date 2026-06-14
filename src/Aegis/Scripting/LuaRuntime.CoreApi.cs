@@ -132,6 +132,7 @@ public sealed partial class LuaRuntime
         _pools.Clear();
         _poolIdSeq   = 0;
         _components.ClearRuntimeState();
+        ClearSceneScripts();
         ScreenEffects.Instance.Reset();
         ShaderManager.ClearScreenShader();
         _totalTime   = 0f;
